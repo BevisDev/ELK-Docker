@@ -1,0 +1,4 @@
+ARG STACK_VERSION
+ARG KIBANA_PASSWORD
+
+FROM docker.elastic.co/kibana/kibana:${STACK_VERSION}

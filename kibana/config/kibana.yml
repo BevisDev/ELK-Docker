@@ -1,0 +1,29 @@
+# ======================== Kibana Configuration =========================
+# https://www.elastic.co/guide/index.html
+# ------------------------------------------------------------------------------
+server:
+  name: kibana
+  host: 0.0.0.0
+  maxPayload: 553247624
+  ssl:
+    enabled: true
+    certificate: certs/kibana/kibana.crt
+    key: certs/kibana/kibana.key
+savedObjects.maxImportPayloadBytes: 553247624
+
+# =================== System: Elasticsearch ===================
+elasticsearch:
+  hosts: ["https://elasticsearch:9200"]
+  username: kibana_system
+  password: $KIBANA_PASSWORD
+  ssl:
+    certificate: certs/es01/es01.crt
+    key: certs/es01/es01.key
+    certificateAuthorities: certs/ca/ca.crt
+    verification_mode: certificate
+
+monitoring.ui.container:
+  elasticsearch:
+    enabled: true
+  logstash:
+    enabled: true
