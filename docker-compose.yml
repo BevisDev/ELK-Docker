@@ -2,11 +2,12 @@ version: "3.8"
 
 networks:
   elastic:
-    driver: bridge
 volumes:
   certs:
+  es01_logs:
   es01_data:
   kibana_data:
+  logstash_data:
 
 services:
   setup:
@@ -15,7 +16,7 @@ services:
       context: setup/
       args:
         STACK_VERSION: $STACK_VERSION
-        ES_PASSWORD: $ES_PASSWORD
+        ELASTIC_PASSWORD: $ELASTIC_PASSWORD
         KIBANA_PASSWORD: $KIBANA_PASSWORD
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
@@ -26,7 +27,7 @@ services:
       test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
       interval: 1s
       timeout: 5s
-      retries: 120
+      retries: 3
 
   es01:
     container_name: es01
@@ -37,23 +38,26 @@ services:
       context: elasticsearch/
       args:
         STACK_VERSION: $STACK_VERSION
+        ELASTIC_PASSWORD: $ELASTIC_PASSWORD
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - es01_data:/usr/share/elasticsearch/data
+      - es01_logs:/usr/share/elasticsearch/logs
       - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
     networks:
       - elastic
     ports:
       - 9200:9200
+    restart: unless-stopped
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
+          "curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q 'missing authentication credentials'",
         ]
       interval: 10s
-      timeout: 10s
-      retries: 120
+      timeout: 8s
+      retries: 5
 
   kibana:
     container_name: kibana
@@ -64,41 +68,42 @@ services:
       context: kibana/
       args:
         STACK_VERSION: $STACK_VERSION
+        KIBANA_PASSWORD: $KIBANA_PASSWORD
+        ENCRYPTION_KEY: $ENCRYPTION_KEY
     volumes:
-      - kibana_data:/usr/share/kibana/data
       - certs:/usr/share/kibana/config/certs
+      - kibana_data:/usr/share/kibana/data
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml
     networks:
       - elastic
     ports:
       - 5601:5601
+    restart: unless-stopped
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'HTTP/1.1 200 Found'",
+          "curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q 'HTTP/1.1 200'",
         ]
       interval: 10s
-      timeout: 10s
-      retries: 120
-# logstash:
-#   container_name: logstash
-#   build:
-#     context: logstash/
-#     args:
-#       ELASTIC_VERSION: ${ELASTIC_VERSION}
-#   volumes:
-#     - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-#     - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
-#   ports:
-#     - 5044:5044
-#     - 50000:50000/tcp
-#     - 50000:50000/udp
-#     - 9600:9600
-#   environment:
-#     LS_JAVA_OPTS: -Xms256m -Xmx256m
-#     LOGSTASH_INTERNAL_PASSWORD: ${LOGSTASH_INTERNAL_PASSWORD}
-#   networks:
-#     - elk
-#   depends_on:
-#     - elasticsearch
-#   restart: unless-stopped
+      timeout: 8s
+      retries: 5
+
+  logstash:
+    container_name: logstash
+    depends_on:
+      - es01
+    build:
+      context: logstash/
+      args:
+        STACK_VERSION: $STACK_VERSION
+        LOGSTASH_PASSWORD: $LOGSTASH_PASSWORD
+    volumes:
+      - certs:/usr/share/logstash/config/certs
+      - logstash_data:/usr/share/logstash/data
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    networks:
+      - elastic
+    #restart: unless-stopped
+

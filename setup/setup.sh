@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # check exists elasticsearch password
-if [ -z $ES_PASSWORD ]; then
-    echo "ES_PASSWORD is empty";
+if [ -z $ELASTIC_PASSWORD ]; then
+    echo "ELASTIC_PASSWORD is empty";
     exit 1;
 fi;
 
@@ -41,11 +41,10 @@ if [ ! -f config/certs/certs.zip ]; then
 fi;
 
 # Health check elasticsearch
-echo "=========Health check Elasticsearch"
+echo "=========Waiting for Elasticsearch availability"
 until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
-echo "Test curl"
-curl --cacert config/certs/ca.cert https://es01:9200 | -u"elastic:$ES_PASSWORD"
+
 echo "=========Setting kibana_system password";
-until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:$ES_PASSWORD" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"$KIBANA_PASSWORD\"}" | grep -q "^{}"; do sleep 10; done;
+until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:$ELASTIC_PASSWORD" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"$KIBANA_PASSWORD\"}" | grep -q "^{}"; do sleep 10; done;
         
 echo "=========All done!";

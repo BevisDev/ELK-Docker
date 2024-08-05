@@ -3,5 +3,6 @@ FROM docker.elastic.co/elasticsearch/elasticsearch:$STACK_VERSION
 
 WORKDIR /usr/share/elasticsearch
 
-COPY ./config/elasticsearch.yml ./config/elasticsearch.yml
+ARG ELASTIC_PASSWORD
+ENV ELASTIC_PASSWORD=$ELASTIC_PASSWORD
 
