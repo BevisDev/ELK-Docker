@@ -18,6 +18,7 @@ services:
         STACK_VERSION: $STACK_VERSION
         ELASTIC_PASSWORD: $ELASTIC_PASSWORD
         KIBANA_PASSWORD: $KIBANA_PASSWORD
+        LOGSTASH_PASSWORD: $LOGSTASH_PASSWORD
         ES01_HOST: $ES01_HOST
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
@@ -55,7 +56,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -s --cacert config/certs/ca/ca.crt $ES01_HOST | grep -q 'missing authentication credentials'",
+          "curl -s $ES01_HOST/_cluster/health -u elastic:$ELASTIC_PASSWORD --cacert /usr/share/elasticsearch/config/certs/ca/ca.crt  | grep -q '\"status\":\"green\"'",
         ]
       interval: 10s
       timeout: 10s
@@ -86,27 +87,32 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -s $ES01_HOST --cacert config/certs/ca/ca.crt | grep -q 'HTTP/1.1 200'",
+          "curl -s https://kibana:5601 -u elastic:$ELASTIC_PASSWORD --cacert /usr/share/kibana/config/certs/ca/ca.crt  | grep -q 'HTTP/1.1 200 OK'",
         ]
       interval: 10s
       timeout: 10s
       retries: 120
 
-  # logstash:
-  #   container_name: logstash
-  #   depends_on:
-  #     - es01
-  #   build:
-  #     context: logstash/
-  #     args:
-  #       ES01_HOST: $ES01_HOST
-  #       STACK_VERSION: $STACK_VERSION
-  #       LOGSTASH_PASSWORD: $LOGSTASH_PASSWORD
-  #   volumes:
-  #     - certs:/usr/share/logstash/config/certs
-  #     - logstash_data:/usr/share/logstash/data
-  #     - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
-  #     - ./logstash/pipeline:/usr/share/logstash/pipeline
-  #   networks:
-  #     - elastic
-  # restart: unless-stopped
+  logstash:
+    container_name: logstash
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    build:
+      context: logstash/
+      args:
+        ES01_HOST: $ES01_HOST
+        STACK_VERSION: $STACK_VERSION
+        LOGSTASH_PASSWORD: $LOGSTASH_PASSWORD
+    volumes:
+      - certs:/usr/share/logstash/config/certs
+      - logstash_data:/usr/share/logstash/data
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      # test
+      - ./mock:/usr/share/logstash/mock
+    networks:
+      - elastic
+    #restart: unless-stopped
