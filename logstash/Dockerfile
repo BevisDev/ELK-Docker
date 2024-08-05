@@ -1,5 +1,5 @@
 ARG STACK_VERSION
-FROM docker.elastic.co/logstash/logstash:${STACK_VERSION}
+FROM docker.elastic.co/logstash/logstash:$STACK_VERSION
 
 ARG LOGSTASH_PASSWORD
 ENV LOGSTASH_PASSWORD=$LOGSTASH_PASSWORD

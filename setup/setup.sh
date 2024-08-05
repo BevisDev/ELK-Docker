@@ -42,9 +42,9 @@ fi;
 
 # Health check elasticsearch
 echo "=========Waiting for Elasticsearch availability"
-until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
+until curl -s $ES01_HOST --cacert config/certs/ca/ca.crt | grep -q "missing authentication credentials"; do sleep 30; done;
 
 echo "=========Setting kibana_system password";
-until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:$ELASTIC_PASSWORD" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"$KIBANA_PASSWORD\"}" | grep -q "^{}"; do sleep 10; done;
+until curl -s -X POST $ES01_HOST/_security/user/kibana_system/_password -u "elastic:$ELASTIC_PASSWORD" -H "Content-Type: application/json" -d "{\"password\":\"$KIBANA_PASSWORD\"}" --cacert config/certs/ca/ca.crt | grep -q "^{}"; do sleep 10; done;
         
 echo "=========All done!";

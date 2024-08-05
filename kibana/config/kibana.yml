@@ -17,7 +17,8 @@ path.data: /usr/share/kibana/data
 
 # =================== System: Elasticsearch ===================
 elasticsearch:
-  hosts: ["https://es01:9200"]
+  hosts:
+    - ${ES01_HOST}
   username: kibana_system
   password: ${KIBANA_PASSWORD}
   ssl:
@@ -28,7 +29,7 @@ monitoring.ui.container:
     enabled: true
   logstash:
     enabled: true
-    
+
 xpack.monitoring.collection.enabled: true
 xpack.monitoring.collection.kibana.enabled: true
 xpack.security.encryptionKey: ${ENCRYPTION_KEY}

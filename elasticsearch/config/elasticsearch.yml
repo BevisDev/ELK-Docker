@@ -1,7 +1,7 @@
 # ======================== Elasticsearch Configuration =========================
 # https://www.elastic.co/guide/en/elasticsearch/reference/index.html
 # ------------------------------------------------------------------------------
-cluster.name: docker-cluster
+cluster.name: ${CLUSTER_NAME}
 node.name: node01
 
 # Create a new cluster with the current node only
