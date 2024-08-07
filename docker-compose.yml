@@ -12,19 +12,19 @@ volumes:
 services:
   setup:
     container_name: setup
-    build:
-      context: setup/
-      args:
-        STACK_VERSION: $STACK_VERSION
-        ELASTIC_PASSWORD: $ELASTIC_PASSWORD
-        KIBANA_PASSWORD: $KIBANA_PASSWORD
-        LOGSTASH_PASSWORD: $LOGSTASH_PASSWORD
-        ES01_HOST: $ES01_HOST
+    image: docker.elastic.co/elasticsearch/elasticsearch:$STACK_VERSION
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
-      - ./setup/instances.yml:/usr/share/elasticsearch/instances.yml
+      - ./setup/instances.yml:/usr/share/elasticsearch/instances.yml:ro
+      - ./setup/setup.sh:/usr/share/elasticsearch/setup.sh:ro
     networks:
       - elastic
+    environment:
+      - ELASTIC_PASSWORD=$ELASTIC_PASSWORD
+      - KIBANA_PASSWORD=$KIBANA_PASSWORD
+      - ES01_HOST=$ES01_HOST
+    user: "0"
+    command: bash -c ./setup.sh
     healthcheck:
       test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
       interval: 1s
@@ -36,27 +36,24 @@ services:
     depends_on:
       setup:
         condition: service_healthy
-    build:
-      context: elasticsearch/
-      args:
-        STACK_VERSION: $STACK_VERSION
-        ELASTIC_PASSWORD: $ELASTIC_PASSWORD
-        CLUSTER_NAME: $CLUSTER_NAME
+    image: docker.elastic.co/elasticsearch/elasticsearch:$STACK_VERSION
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - es01_data:/usr/share/elasticsearch/data
-      - es01_logs:/usr/share/elasticsearch/logs
-      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+      - ./config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
     networks:
       - elastic
     ports:
       - $ES01_PORT:9200
     restart: unless-stopped
+    environment:
+      - ELASTIC_PASSWORD=$ELASTIC_PASSWORD
+      - CLUSTER_NAME=$CLUSTER_NAME
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "curl -s $ES01_HOST/_cluster/health -u elastic:$ELASTIC_PASSWORD --cacert /usr/share/elasticsearch/config/certs/ca/ca.crt  | grep -q '\"status\":\"green\"'",
+          'curl -s $ES01_HOST/_cluster/health -u elastic:$ELASTIC_PASSWORD --cacert /usr/share/elasticsearch/config/certs/ca/ca.crt  | grep -q ''"status":"green"''',
         ]
       interval: 10s
       timeout: 10s
@@ -67,27 +64,25 @@ services:
     depends_on:
       es01:
         condition: service_healthy
-    build:
-      context: kibana/
-      args:
-        STACK_VERSION: $STACK_VERSION
-        KIBANA_PASSWORD: $KIBANA_PASSWORD
-        ENCRYPTION_KEY: $ENCRYPTION_KEY
-        ES01_HOST: $ES01_HOST
+    image: docker.elastic.co/kibana/kibana:$STACK_VERSION
     volumes:
       - certs:/usr/share/kibana/config/certs
       - kibana_data:/usr/share/kibana/data
-      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml
+      - ./config/kibana.yml:/usr/share/kibana/config/kibana.yml
     networks:
       - elastic
     ports:
       - $KIBANA_PORT:5601
     restart: unless-stopped
+    environment:
+      - KIBANA_PASSWORD=$KIBANA_PASSWORD
+      - ENCRYPTION_KEY=$ENCRYPTION_KEY
+      - ES01_HOST=$ES01_HOST
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "curl -s https://kibana:5601 -u elastic:$ELASTIC_PASSWORD --cacert /usr/share/kibana/config/certs/ca/ca.crt  | grep -q 'HTTP/1.1 200 OK'",
+          "curl -s -I https://kibana:5601 --cacert /usr/share/kibana/config/certs/ca/ca.crt | grep -q 'HTTP/1.1 200 OK'",
         ]
       interval: 10s
       timeout: 10s
@@ -100,19 +95,26 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
-    build:
-      context: logstash/
-      args:
-        ES01_HOST: $ES01_HOST
-        STACK_VERSION: $STACK_VERSION
-        LOGSTASH_PASSWORD: $LOGSTASH_PASSWORD
+    image: docker.elastic.co/logstash/logstash:$STACK_VERSION
     volumes:
       - certs:/usr/share/logstash/config/certs
       - logstash_data:/usr/share/logstash/data
-      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
-      - ./logstash/pipeline:/usr/share/logstash/pipeline
-      # test
-      - ./mock:/usr/share/logstash/mock
+      - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./pipeline/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      # ingest data
+      - ./ingest_data:/usr/share/logstash/ingest_data
     networks:
       - elastic
-    #restart: unless-stopped
+    environment:
+      - ES01_HOST=$ES01_HOST
+      - ELASTIC_PASSWORD=$ELASTIC_PASSWORD
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s http://logstash:9600/_node/stats | grep -q '^{}'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120

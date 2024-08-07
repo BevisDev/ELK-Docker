@@ -45,9 +45,6 @@ echo "=========Waiting for Elasticsearch availability"
 until curl -s $ES01_HOST --cacert config/certs/ca/ca.crt | grep -q "missing authentication credentials"; do sleep 30; done;
 
 echo "=========Setting kibana_system password";
-until curl -s -X POST $ES01_HOST/_security/user/kibana_system/_password -u "elastic:$ELASTIC_PASSWORD" -H "Content-Type: application/json" -d "{\"password\":\"$KIBANA_PASSWORD\"}" --cacert config/certs/ca/ca.crt | grep -q "^{}"; do sleep 10; done;
+until curl -s -X POST $ES01_HOST/_security/user/kibana_system/_password -u "elastic:$ELASTIC_PASSWORD" -H "Content-Type: application/json" -d "{\"password\":\"$KIBANA_PASSWORD\"}" --cacert config/certs/ca/ca.crt | grep -q "^{}"; do sleep 10; done;  
 
-echo "=========Setting logstash_system password";
-until curl -s -X POST $ES01_HOST/_security/user/logstash_system/_password -u "elastic:$ELASTIC_PASSWORD" -H "Content-Type: application/json" -d "{\"password\":\"$LOGSTASH_PASSWORD\"}" --cacert config/certs/ca/ca.crt | grep -q "^{}"; do sleep 10; done;
-                
 echo "=========All done!";
